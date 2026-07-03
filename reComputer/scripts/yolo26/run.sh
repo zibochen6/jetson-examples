@@ -36,6 +36,16 @@ fi
 # Get absolute path for mounting
 SOURCE_ABS="$(realpath "$SOURCE_FILE")"
 
-sudo docker run --rm     --runtime=nvidia     --network=host     -v /usr/local/cuda:/usr/local/cuda:ro     -v /usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu/nvidia:ro     -v "$SCRIPT_DIR/output:/output"     -v "$SOURCE_ABS:/input/video.mp4:ro"     -e NVIDIA_VISIBLE_DEVICES=all     -e LD_LIBRARY_PATH=/usr/local/cuda/targets/sbsa-linux/lib:/usr/lib/aarch64-linux-gnu/nvidia     "$IMAGE_NAME"     --source /input/video.mp4
+sudo docker run --rm \
+    --runtime=nvidia \
+    --network=host \
+    -v /usr/local/cuda:/usr/local/cuda:ro \
+    -v "$SCRIPT_DIR/output:/output" \
+    -v "$SOURCE_ABS:/input/video.mp4:ro" \
+    -e NVIDIA_VISIBLE_DEVICES=all \
+    -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    -e LD_LIBRARY_PATH=/usr/local/cuda/targets/sbsa-linux/lib:/usr/lib/aarch64-linux-gnu/nvidia \
+    "$IMAGE_NAME" \
+    --source /input/video.mp4
 
 echo "Done! Check $SCRIPT_DIR/output/result.mp4"
