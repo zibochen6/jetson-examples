@@ -10,7 +10,7 @@ check_is_jetson_or_not() {
     
     if [ -f "/proc/device-tree/model" ]; then
         model=$(tr -d '\0' < /proc/device-tree/model | tr '[:upper:]' '[:lower:]')
-        if [[ $model =~ jetson|orin|nv|agx ]]; then
+        if [[ $model =~ jetson|orin|nv|agx|recomputer|seeed ]]; then
             echo "INFO: machine[$model] confirmed..."
         else
             echo "WARNING: machine[$model] maybe not support..."
@@ -26,7 +26,6 @@ check_is_jetson_or_not
 echo "run example：$1"
 BASE_PATH=/home/$USER/reComputer
 
-
 cd $JETSON_REPO_PATH
 script_dir=$(dirname "$0")
 
@@ -41,7 +40,11 @@ fi
 start_script=$script_dir/$1/run.sh
 if [ -f $start_script ]; then
     echo "----example start----"
-    bash $start_script
+    if [ -n "$2" ]; then
+        bash $start_script "$2"
+    else
+        bash $start_script
+    fi
 else
     echo "ERROR: Example[$1] run.sh Not Found."
 fi
