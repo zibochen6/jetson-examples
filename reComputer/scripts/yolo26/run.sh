@@ -18,9 +18,9 @@ if [ ! -f "$MODEL_FILE" ]; then
 fi
 
 # Build image if not exists
-if ! sudo docker images "$IMAGE_NAME" --format "{{.Repository}}" 2>/dev/null | grep -q "$IMAGE_NAME"; then
+if ! docker images "$IMAGE_NAME" --format "{{.Repository}}" 2>/dev/null | grep -q "$IMAGE_NAME"; then
     echo "Building YOLO26 Docker image..."
-    sudo docker build --network host -t "$IMAGE_NAME" .
+    docker build --network host -t "$IMAGE_NAME" .
 fi
 
 echo "Running YOLO26 detection on: $SOURCE_FILE"
@@ -36,7 +36,7 @@ fi
 # Get absolute path for mounting
 SOURCE_ABS="$(realpath "$SOURCE_FILE")"
 
-sudo docker run --rm \
+docker run --rm \
     --runtime=nvidia \
     --network=host \
     -v /usr/local/cuda:/usr/local/cuda:ro \
