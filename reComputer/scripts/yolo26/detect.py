@@ -88,8 +88,11 @@ def main():
         if use_display and cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    avg_fps = frame_count / total_time if total_time > 0 else 0
-    print(f"\nDone: {frame_count} frames, avg {avg_fps:.1f} FPS ({total_time/frame_count*1000:.1f}ms/frame)")
+    if frame_count > 0:
+        avg_fps = frame_count / total_time if total_time > 0 else 0
+        print(f"\nDone: {frame_count} frames, avg {avg_fps:.1f} FPS ({total_time/frame_count*1000:.1f}ms/frame)")
+    else:
+        print("\nNo frames were processed. The video file may be corrupted.")
     if save_path:
         print(f"Result saved to: {save_path}")
 
