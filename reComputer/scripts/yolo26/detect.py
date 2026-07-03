@@ -55,7 +55,7 @@ def main():
     print(f"Model:  {args.model}")
     print(f"Conf:   {args.conf}")
     print(f"Show:   {use_display}")
-    print(f"Save:   {save_path if save_path else \"None\"}")
+    print(f"Save:   {save_path if save_path else 'None'}")
     print("Press q to quit" if use_display else "Processing...")
 
     frame_count = 0
