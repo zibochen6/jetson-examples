@@ -52,15 +52,20 @@ def list_all_examples(folder_path):
 
 
 def run_script():
-
     if len(sys.argv) == 3:
         if sys.argv[1] == "run":
             example_name = sys.argv[2]
-            # TODO: maybe use python instead of shell is better
             subprocess.run(["bash", path_of_script("run.sh"), example_name])
         elif sys.argv[1] == "clean":
             example_name = sys.argv[2]
             subprocess.run(["bash", path_of_script("clean.sh"), example_name])
+        else:
+            print("Only Support `run` or `clean` for now. try `reComputer run llava` .")
+    elif len(sys.argv) == 4:
+        if sys.argv[1] == "run":
+            example_name = sys.argv[2]
+            extra_arg = sys.argv[3]
+            subprocess.run(["bash", path_of_script("run.sh"), example_name, extra_arg])
         else:
             print("Only Support `run` or `clean` for now. try `reComputer run llava` .")
     elif len(sys.argv) == 2:

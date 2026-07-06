@@ -1,0 +1,54 @@
+# =============================================================================
+# docker-compose.yml - ultralytics YOLO26 slim on Jetson (JetPack 6.x)
+#
+# Host GPU library mount pattern:
+#   - /usr/local/cuda           -> /host-cuda        (CUDA runtime libs, symlink to current CUDA)
+#   - /usr/lib/aarch64-linux-gnu/nvidia -> /host-nvidia  (NVIDIA driver libs + DLA/NRM)
+#   - /lib/aarch64-linux-gnu    -> /host-syslibs     (cuda, cudnn, tensorrt runtime stubs)
+#   - /usr/lib/python3/dist-packages/tensorrt -> /host-tensorrt (TRT python bindings)
+#
+# LD_LIBRARY_PATH includes onnxruntime capi path first, then host mounts.
+# =============================================================================
+
+services:
+  yolo26:
+    image: ultralytics/ultralytics:8.4.54-jetson-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.slim
+    container_name: yolo26_slim
+    runtime: nvidia
+    ipc: host
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      # --- Host GPU runtime libs (JetPack 6.x standard paths) ---
+      # /usr/local/cuda is a symlink to the actual CUDA version on the host,
+      # works across JP 6.0 / 6.1 / 6.2 without hardcoding a version.
+      - /usr/local/cuda/lib64:/host-cuda:ro
+      # NVIDIA driver libs, DLA compiler, NRM libs (subdirectory is critical).
+      - /usr/lib/aarch64-linux-gnu/nvidia:/host-nvidia:ro
+      # System stubs: libcuda.so, libcudnn.so, libnvinfer.so, etc.
+      # Note: /lib is a symlink to /usr/lib/aarch64-linux-gnu on JetPack 6.x
+      - /usr/lib/aarch64-linux-gnu:/host-syslibs:ro
+      # --- TensorRT Python bindings from host ---
+      - /usr/lib/python3/dist-packages/tensorrt:/host-tensorrt:ro
+      # --- Optional: persistent model cache ---
+      - yolo26_models:/root/.cache/Ultralytics
+    environment:
+      - CUDA_MODULE_LOADING=LAZY
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      # Prepend onnxruntime capi so its libs are found before host stubs
+      - LD_LIBRARY_PATH=/usr/local/lib/python3.10/dist-packages/onnxruntime/capi:/host-nvidia:/host-syslibs:/host-cuda
+    healthcheck:
+      test: ["CMD", "python3", "-c", "from ultralytics import YOLO; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    command: ["python3", "-c", "from ultralytics import YOLO; print('YOLO26 slim ready')"]
+
+volumes:
+  yolo26_models:
+    driver: local

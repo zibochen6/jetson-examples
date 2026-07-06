@@ -1,0 +1,122 @@
+# =============================================================================
+# Dockerfile.slim - ultralytics YOLO26 for Jetson (JetPack 6.x)
+#
+# Multi-stage build: Stage 1 (builder) verifies fat image packages exist.
+# Stage 2 (runtime) copies only what's needed from builder to a slim base.
+#
+# Reduction from ~15.3 GB to ~2.6 GB by:
+#   - Stripping cuda-toolkit-12-6 (5.79 GB)      -> mounted from host
+#   - Stripping nvidia-tensorrt-dev (1.46 GB)     -> mounted from host
+#   - Stripping nvidia-cudnn9-dev (1.01 GB)      -> mounted from host
+#   - Stripping multimedia-api/DLA/GStreamer (~760 MB)
+#   - Keeping torch/torchvision via pre-built aarch64 wheels
+#
+# Build on Jetson device:
+#   docker buildx build -f Dockerfile.slim -t ultralytics/ultralytics:8.4.54-jetson-slim --load .
+#
+# Run:
+#   ./run.sh --slim --shell
+# =============================================================================
+
+# === Stage 1: Builder ===
+ARG BUILDER_IMAGE=ultralytics/ultralytics:8.4.54-jetson-jetpack6
+FROM ${BUILDER_IMAGE} AS builder
+
+RUN python3 -c "import ultralytics; print('ultralytics:', ultralytics.__version__)" && \
+    python3 -c "import torch; print('torch:', torch.__version__)" && \
+    python3 -c "import torchvision; print('torchvision:', torchvision.__version__)" && \
+    python3 -c "import onnxruntime; print('onnxruntime:', onnxruntime.__version__)" && \
+    python3 -c "import cv2; print('opencv:', cv2.__version__)"
+
+
+# === Stage 2: Runtime ===
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    CUDA_MODULE_LOADING=LAZY \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=all
+
+# System libs for torch + opencv + video capture
+# ffmpeg: used by webcam.sh for V4L2 frame capture via ffmpeg pipe
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    libgl1 \
+    libopenblas0 \
+    libopenmpi-dev \
+    libomp-dev \
+    libpython3.10 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libjpeg-turbo8 \
+    zlib1g \
+    libpng16-16 \
+    libtiff5 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# JetPack opencv Python bindings (OBSENSOR + V4L2 backends for USB webcams)
+COPY --from=builder /usr/lib/python3.10/dist-packages/cv2/ /usr/lib/python3.10/dist-packages/cv2/
+
+# JetPack opencv shared libs
+COPY --from=builder /usr/lib/libopencv_calib3d.so.4.8.0 /usr/lib/libopencv_calib3d.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_core.so.4.8.0    /usr/lib/libopencv_core.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_dnn.so.4.8.0      /usr/lib/libopencv_dnn.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_features2d.so.4.8.0 /usr/lib/libopencv_features2d.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_flann.so.4.8.0     /usr/lib/libopencv_flann.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_gapi.so.4.8.0      /usr/lib/libopencv_gapi.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_highgui.so.4.8.0   /usr/lib/libopencv_highgui.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_imgcodecs.so.4.8.0  /usr/lib/libopencv_imgcodecs.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_imgproc.so.4.8.0    /usr/lib/libopencv_imgproc.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_ml.so.4.8.0         /usr/lib/libopencv_ml.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_objdetect.so.4.8.0   /usr/lib/libopencv_objdetect.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_photo.so.4.8.0       /usr/lib/libopencv_photo.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_stitching.so.4.8.0   /usr/lib/libopencv_stitching.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_video.so.4.8.0        /usr/lib/libopencv_video.so.4.8.0
+COPY --from=builder /usr/lib/libopencv_videoio.so.4.8.0     /usr/lib/libopencv_videoio.so.4.8.0
+
+# SONAME symlinks (.so.X.X.X -> .so.X)
+RUN for lib in calib3d core dnn features2d flann gapi highgui imgcodecs imgproc ml objdetect photo stitching video videoio; do \
+        ln -sf /usr/lib/libopencv_${lib}.so.4.8.0 /usr/lib/libopencv_${lib}.so.4.8; \
+    done \
+    && ln -sf /usr/lib/libopencv_core.so.4.8 /usr/lib/libopencv_core.so \
+    && ln -sf /usr/lib/libopencv_videoio.so.4.8 /usr/lib/libopencv_videoio.so \
+    || true
+
+# Pre-built aarch64 wheels from ultralytics assets
+RUN pip3 install --no-cache-dir \
+    https://github.com/ultralytics/assets/releases/download/v0.0.0/onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl \
+    https://github.com/ultralytics/assets/releases/download/v0.0.0/torch-2.10.0-cp310-cp310-linux_aarch64.whl \
+    https://github.com/ultralytics/assets/releases/download/v0.0.0/torchvision-0.25.0-cp310-cp310-linux_aarch64.whl
+
+# Core ultralytics (no [export] extras)
+RUN pip3 install --no-cache-dir \
+    'numpy<2' \
+    ultralytics
+
+# Fix onnxruntime SONAME symlink
+RUN ln -sf \
+    /usr/local/lib/python3.10/dist-packages/onnxruntime/capi/libonnxruntime.so.1.*.0 \
+    /usr/local/lib/python3.10/dist-packages/onnxruntime/capi/libonnxruntime.so.1 \
+    2>/dev/null || true
+
+# Assets that pip cannot provide
+COPY --from=builder /root/.config/Ultralytics/Arial.ttf          /root/.config/Ultralytics/Arial.ttf
+COPY --from=builder /root/.config/Ultralytics/Arial.Unicode.ttf    /root/.config/Ultralytics/Arial.Unicode.ttf
+COPY --from=builder /ultralytics/yolo26n.pt                        /root/.cache/Ultralytics/yolo26n.pt
+COPY --from=builder /ultralytics/                                  /opt/ultralytics/
+
+# libcudss: torch links against it; NOT on JetPack host, bundled here
+COPY --from=builder /usr/lib/aarch64-linux-gnu/libcudss.so.0           /usr/lib/aarch64-linux-gnu/libcudss.so.0
+COPY --from=builder /usr/lib/aarch64-linux-gnu/libcudss.so            /usr/lib/aarch64-linux-gnu/libcudss.so
+COPY --from=builder /usr/lib/aarch64-linux-gnu/libcudss_mtlayer_gomp.so.0 /usr/lib/aarch64-linux-gnu/libcudss_mtlayer_gomp.so.0
+
+WORKDIR /workspace
+CMD ["python3"]

@@ -1,42 +1,51 @@
 #!/bin/bash
 set -e
 
-IMAGE_VERSION="8.4.54"
+IMAGE_NAME="yolo26:latest"
+SCRIPT_DIR="$(cd "$(dirname "$(realpath "$0")")" && pwd)"
+MODEL_URL="https://github.com/ultralytics/assets/releases/download/v8.4.0/yolo26n.pt"
+MODEL_FILE="yolo26n.pt"
 
-get_l4t_version() {
-    local l4t_version=""
-    if [ -f /etc/nv_tegra_release ]; then
-        local release_line
-        release_line=$(head -n 1 /etc/nv_tegra_release)
-        if [[ $release_line =~ R([0-9]+)\ *\(release\),\ REVISION:\ ([0-9]+\.[0-9]+) ]]; then
-            local major="${BASH_REMATCH[1]}"
-            local revision="${BASH_REMATCH[2]}"
-            l4t_version="${major}.${revision}"
-        fi
-    fi
-    echo "$l4t_version"
-}
+# Parse arguments
+SOURCE_FILE="${1:-test.mp4}"
 
-L4T_VERSION=$(get_l4t_version)
-echo "Detected L4T version: $L4T_VERSION"
+cd "$SCRIPT_DIR"
 
-case "$L4T_VERSION" in
-    35.*)
-        IMAGE_NAME="ultralytics/ultralytics:${IMAGE_VERSION}-jetson-jetpack5"
-        ;;
-    36.*)
-        IMAGE_NAME="ultralytics/ultralytics:${IMAGE_VERSION}-jetson-jetpack6"
-        ;;
-    38.*)
-        IMAGE_NAME="ultralytics/ultralytics:${IMAGE_VERSION}-nvidia-arm64"
-        ;;
-    *)
-        echo "Error: L4T version $L4T_VERSION is not supported by this YOLO26 demo."
-        echo "Supported JetPack versions: 5.x, 6.x, and 7.x."
-        exit 1
-        ;;
-esac
+# Download model if not exists
+if [ ! -f "$MODEL_FILE" ]; then
+    echo "Downloading YOLO26n model (5.3MB)..."
+    wget -q --show-progress "$MODEL_URL" -O "$MODEL_FILE"
+fi
 
-echo "Using Docker image: $IMAGE_NAME"
-sudo docker pull "$IMAGE_NAME"
-sudo docker run -it --ipc=host --runtime=nvidia "$IMAGE_NAME"
+# Build image if not exists
+if ! docker images "$IMAGE_NAME" --format "{{.Repository}}" 2>/dev/null | grep -q "$IMAGE_NAME"; then
+    echo "Building YOLO26 Docker image..."
+    docker build --network host -t "$IMAGE_NAME" .
+fi
+
+echo "Running YOLO26 detection on: $SOURCE_FILE"
+mkdir -p "$SCRIPT_DIR/output"
+
+# Check if source file exists
+if [ ! -f "$SOURCE_FILE" ]; then
+    echo "ERROR: Source file not found: $SOURCE_FILE"
+    echo "Usage: reComputer run yolo26 /path/to/video.mp4"
+    exit 1
+fi
+
+# Get absolute path for mounting
+SOURCE_ABS="$(realpath "$SOURCE_FILE")"
+
+docker run --rm \
+    --runtime=nvidia \
+    --network=host \
+    -v /usr/local/cuda:/usr/local/cuda:ro \
+    -v "$SCRIPT_DIR/output:/output" \
+    -v "$SOURCE_ABS:/input/video.mp4:ro" \
+    -e NVIDIA_VISIBLE_DEVICES=all \
+    -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    -e LD_LIBRARY_PATH=/usr/local/cuda/targets/sbsa-linux/lib:/usr/lib/aarch64-linux-gnu/nvidia \
+    "$IMAGE_NAME" \
+    --source /input/video.mp4
+
+echo "Done! Check $SCRIPT_DIR/output/result.mp4"
