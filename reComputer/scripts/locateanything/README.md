@@ -4,6 +4,10 @@ Real-time object detection web UI powered by NVIDIA **LocateAnything-3B** (a 3B-
 
 Runs entirely inside a **Docker container** — no host Python/conda pollution.
 
+<p align="center">
+  <img src="images/lca.gif" alt="LocateAnything-3B real-time detection demo">
+</p>
+
 ## Supported Devices
 
 | JetPack | L4T | Device |
