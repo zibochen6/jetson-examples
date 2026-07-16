@@ -5,6 +5,40 @@ SCRIPT_DIR="$(cd "$(dirname "$(realpath "$0")")" && pwd)"
 IMAGE_NAME="locateanything:latest"
 PORT="${PORT:-7860}"
 
+# ── Low-memory branch: 4-bit NF4 Docker on <16GB devices (Orin Nano 8G / NX) ─
+CURRENT_MEM=$(free -g | awk '/^Mem:/{print $2}')
+if [ "$CURRENT_MEM" -lt 16 ]; then
+    IMAGE_NAME="locateanything-4bit:latest"
+    if ! docker images "$IMAGE_NAME" --format "{{.Repository}}" 2>/dev/null | grep -q "locateanything-4bit"; then
+        echo "ERROR: 4-bit Docker image '$IMAGE_NAME' not found."
+        echo "Run 'reComputer run locateanything' first (init.sh builds it)."
+        exit 1
+    fi
+
+    IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    echo "Starting LocateAnything 4-bit Web UI (Docker) on port $PORT..."
+    echo "  Model: nvidia/LocateAnything-3B, 4-bit NF4 (device-detected MAX_SIDE)"
+    echo "  Local:   http://localhost:$PORT"
+    echo "  Network: http://${IP:-<jetson-ip>}:$PORT"
+    echo "  Stop:    Ctrl+C"
+    echo ""
+    # Image ENV carries LD_LIBRARY_PATH (cu12 libs), HF mirror, PYTORCH_CUDA_ALLOC_CONF.
+    # run_web_ui.py ENTRYPOINT device-detects MAX_SIDE + auto-restarts on crash.
+    # Mount the host HF cache (reuses the 7.3GB model already downloaded; fresh
+    # devices download into it on first run). Swap on host absorbs inference spikes.
+    exec docker run --rm \
+        --runtime=nvidia \
+        --network=host \
+        -v "$HOME/.cache/huggingface:/root/.cache/huggingface" \
+        -e NVIDIA_VISIBLE_DEVICES=all \
+        -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+        -e LA_PORT="$PORT" \
+        -e LA_HOST=0.0.0.0 \
+        -p "$PORT":"$PORT" \
+        "$IMAGE_NAME"
+fi
+
+# ── bf16 Docker path (≥16GB devices: Thor / AGX) ────────────────────────────
 # ── Verify image exists ────────────────────────────────────────────────────
 if ! docker images "$IMAGE_NAME" --format "{{.Repository}}" 2>/dev/null | grep -q "locateanything"; then
     echo "ERROR: Docker image '$IMAGE_NAME' not found."
