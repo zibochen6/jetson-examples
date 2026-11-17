@@ -1,0 +1,6 @@
+# Compatibility metadata. launch.py owns Docker; never reconfigure the host daemon.
+ALLOWED_L4T_VERSIONS:
+  - 36.4.3
+PACKAGES: []
+DOCKER:
+  ENABLE: false

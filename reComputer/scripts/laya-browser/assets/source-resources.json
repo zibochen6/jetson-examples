@@ -1,0 +1,20 @@
+{
+  "source_wiki": "https://wiki.seeedstudio.com/jetson/local_decision_model_laya/",
+  "usage": "Original Wiki animations, reused unchanged. They demonstrate existing application behavior, not Docker release acceptance.",
+  "assets": [
+    {
+      "url": "https://files.seeedstudio.com/wiki/Jetson/Application/jetson-laya-flight-search-demo.gif",
+      "bytes": 6699751,
+      "sha256": "de7aa260059db831bd5fee16462c7ffb2fa6d2bb66b2d21e8605433404f06a72",
+      "format": "GIF",
+      "unchanged": true
+    },
+    {
+      "url": "https://files.seeedstudio.com/wiki/Jetson/Application/jetson-laya-whiteboard-demo.gif",
+      "bytes": 5463194,
+      "sha256": "1c0d049e499423587e0687dd97ace9f6d47436abab9e9b1ad0bb78961662eb97",
+      "format": "GIF",
+      "unchanged": true
+    }
+  ]
+}
