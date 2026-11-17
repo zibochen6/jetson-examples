@@ -38,3 +38,14 @@ LLaMA                                            | Text (LLM)               | 1.
 | [TensorFlow MoveNet Lightning](/reComputer/scripts/MoveNet-Lightning/readme.md) |Computer Vision |  | 7.48GB  | `reComputer run  MoveNet-Lightning`  | USB-CAM*
 | [TensorFlow MoveNet JS](/reComputer/scripts/MoveNetJS/readme.md) |Computer Vision |  | 56.21MB  | `reComputer run  MoveNetJS`  | USB-CAM*
 | [Parler-TTS mini: expresso](/reComputer/scripts/parler-tts/readme.md) |Audio |  | 6.9GB  | `reComputer run  parler-tts`  |
+
+## Local Browser Agent with Laya + Qwen
+
+Operate real Trip.com searches and edit a local whiteboard on Orin NX16GB using a complete Docker image with both models included.
+
+```bash
+reComputer run laya-browser
+reComputer run laya-browser whiteboard
+```
+
+[Setup, original Wiki animations and Docker validation](../reComputer/scripts/laya-browser/README.md).

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "version": "0.1.0-rc1-jp62-r36.4.3-arm64",
+  "image": "chenduola6/jetson-laya-browser:0.1.0-rc1-jp62-r36.4.3-arm64",
+  "digest": null,
+  "image_id": null,
+  "source_repository": "https://github.com/zibochen6/jetson-browser-assistant",
+  "source_revision": "4146f18fc31eac9d47402fbbfcd78c6be7e2e764",
+  "base_image": "nvcr.io/nvidia/l4t-jetpack:r36.4.0@sha256:34ccf0f3b63c6da9eee45f2e79de9bf7fdf3beda9abfd72bbf285ae9d40bb673",
+  "status": "candidate-awaiting-target-connection",
+  "l4t": "36.4.3",
+  "required_free_gib": 30
+}
